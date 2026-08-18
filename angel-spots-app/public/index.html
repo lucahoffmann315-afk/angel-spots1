@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>Illegale Angel-Spots</title>
+<style>
+  :root{
+    --bg: #0a0d14;
+    --panel: #0f1420;
+    --panel-border: #3a1414;
+    --input-bg: #131a2c;
+    --input-border: #1f2942;
+    --text: #f2f3f5;
+    --text-dim: #8b93a7;
+    --accent: #e5484d;
+    --accent-hover: #f0616a;
+  }
+  *{ box-sizing: border-box; }
+  html,body{
+    margin:0; padding:0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  .wrap{
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 32px 20px 60px;
+  }
+  .eyebrow{
+    color: var(--accent);
+    font-weight: 700;
+    font-size: 12px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  h1{
+    font-size: 26px;
+    margin: 0 0 20px 0;
+    font-weight: 800;
+  }
+  .card{
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+  .card-title{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    font-weight: 700;
+    font-size: 15px;
+    margin-bottom: 16px;
+    color: var(--text);
+  }
+  .card-title .plus{
+    color: var(--accent);
+    font-weight: 800;
+  }
+  input{
+    width: 100%;
+    background: var(--input-bg);
+    border: 1px solid var(--input-border);
+    border-radius: 8px;
+    color: var(--text);
+    padding: 12px 14px;
+    font-size: 14px;
+    margin-bottom: 12px;
+    outline: none;
+    transition: border-color .15s ease;
+  }
+  input::placeholder{ color: var(--text-dim); }
+  input:focus{ border-color: var(--accent); }
+  .row2{
+    display:flex;
+    gap: 12px;
+  }
+  .row2 input{ flex:1; margin-bottom: 0; }
+  .row2{ margin-bottom: 12px; }
+  button.save{
+    width: 100%;
+    background: var(--accent);
+    border: none;
+    color: white;
+    font-weight: 700;
+    font-size: 14px;
+    padding: 13px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    transition: background .15s ease;
+    margin-top: 4px;
+  }
+  button.save:hover{ background: var(--accent-hover); }
+
+  .spot{
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
+    padding: 18px 20px;
+    margin-bottom: 14px;
+  }
+  .spot-head{
+    display:flex;
+    align-items:center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+  }
+  .spot-name{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    font-weight: 800;
+    font-size: 15px;
+    letter-spacing: .3px;
+  }
+  .del{
+    background: rgba(229,72,77,0.15);
+    border: 1px solid rgba(229,72,77,0.3);
+    color: var(--accent);
+    border-radius: 8px;
+    width: 30px;
+    height: 30px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .del:hover{ background: rgba(229,72,77,0.3); }
+  .del.small{
+    width: 26px;
+    height: 26px;
+    font-size: 12px;
+  }
+  .stat{
+    display:flex;
+    justify-content: space-between;
+    font-size: 13px;
+    padding: 6px 0;
+  }
+  .stat-label{ color: var(--text-dim); }
+  .stat-value{ font-weight: 700; }
+
+  .fish-section{
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px dashed var(--panel-border);
+  }
+  .fish-label{
+    color: var(--text-dim);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .5px;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    display:flex;
+    align-items:center;
+    gap:6px;
+  }
+  .fish-item{
+    display:flex;
+    align-items:center;
+    justify-content: space-between;
+    background: var(--input-bg);
+    border: 1px solid var(--input-border);
+    border-radius: 8px;
+    padding: 9px 12px;
+    margin-bottom: 8px;
+    font-size: 13px;
+  }
+  .fish-item .fname{ font-weight: 700; }
+  .fish-item .ftime{ color: var(--text-dim); margin-left: 10px; }
+  .fish-item-left{ display:flex; align-items:baseline; gap: 4px; flex-wrap: wrap; }
+  .fish-empty{
+    color: var(--text-dim);
+    font-size: 13px;
+    margin-bottom: 10px;
+  }
+  .fish-add-row{
+    display:flex;
+    gap: 8px;
+    margin-top: 8px;
+  }
+  .fish-add-row input{
+    margin-bottom: 0;
+    font-size: 13px;
+    padding: 10px 12px;
+  }
+  .fish-add-row .fname-input{ flex: 1.2; }
+  .fish-add-row .ftime-input{ flex: 1; }
+  .fish-add-btn{
+    background: var(--accent);
+    border: none;
+    color: white;
+    font-weight: 700;
+    font-size: 18px;
+    line-height: 1;
+    width: 40px;
+    border-radius: 8px;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .fish-add-btn:hover{ background: var(--accent-hover); }
+
+  .empty{
+    text-align:center;
+    color: var(--text-dim);
+    font-size: 14px;
+    padding: 30px 0;
+  }
+  .toast{
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    color: var(--text);
+    padding: 10px 18px;
+    border-radius: 8px;
+    font-size: 13px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .2s ease;
+  }
+  .toast.show{ opacity: 1; }
+
+  .lock-screen{
+    min-height: 100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding: 20px;
+  }
+  .lock-box{
+    width: 100%;
+    max-width: 340px;
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
+    padding: 28px;
+    text-align:center;
+  }
+  .lock-icon{ font-size: 32px; margin-bottom: 10px; }
+  .lock-title{ font-weight: 800; font-size: 18px; margin-bottom: 4px; }
+  .lock-sub{ color: var(--text-dim); font-size: 13px; margin-bottom: 18px; }
+  .lock-error{
+    color: var(--accent);
+    font-size: 12px;
+    min-height: 16px;
+    margin: -6px 0 8px;
+  }
+  .hidden{ display: none !important; }
+
+  .map-upload-label{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap: 8px;
+    width: 100%;
+    background: var(--input-bg);
+    border: 1px dashed var(--input-border);
+    border-radius: 8px;
+    color: var(--text-dim);
+    padding: 12px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-bottom: 12px;
+    transition: border-color .15s ease, color .15s ease;
+  }
+  .map-upload-label:hover{ border-color: var(--accent); color: var(--text); }
+  .map-upload-label input[type="file"]{ display:none; }
+
+  .map-preview{
+    width: 100%;
+    max-height: 160px;
+    object-fit: cover;
+    border-radius: 8px;
+    margin-bottom: 12px;
+    display: block;
+  }
+
+  .map-section{
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px dashed var(--panel-border);
+  }
+  .map-label{
+    color: var(--text-dim);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .5px;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    display:flex;
+    align-items:center;
+    gap:6px;
+  }
+  .map-img-wrap{
+    position: relative;
+    border-radius: 8px;
+    overflow: hidden;
+    cursor: zoom-in;
+  }
+  .map-img-wrap img{
+    width: 100%;
+    max-height: 220px;
+    object-fit: cover;
+    display:block;
+    border-radius: 8px;
+  }
+  .map-remove{
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: rgba(10,13,20,0.75);
+    border: 1px solid var(--panel-border);
+    color: var(--accent);
+    border-radius: 6px;
+    width: 26px;
+    height: 26px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    cursor: pointer;
+    font-size: 12px;
+  }
+  .map-remove:hover{ background: rgba(229,72,77,0.25); }
+  .map-upload-small{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap: 8px;
+    width: 100%;
+    background: var(--input-bg);
+    border: 1px dashed var(--input-border);
+    border-radius: 8px;
+    color: var(--text-dim);
+    padding: 14px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: border-color .15s ease, color .15s ease;
+  }
+  .map-upload-small:hover{ border-color: var(--accent); color: var(--text); }
+  .map-upload-small input[type="file"]{ display:none; }
+
+  .lightbox{
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.85);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding: 24px;
+    z-index: 100;
+    cursor: zoom-out;
+  }
+  .lightbox img{
+    max-width: 100%;
+    max-height: 100%;
+    border-radius: 8px;
+  }
+</style>
+</head>
+<body>
+
+<div id="lockScreen" class="lock-screen">
+  <div class="lock-box">
+    <div class="lock-icon">🔒</div>
+    <div class="lock-title">Zugriff gesperrt</div>
+    <div class="lock-sub">Passwort eingeben, um fortzufahren</div>
+    <input id="pw" type="password" placeholder="Passwort" />
+    <div class="lock-error" id="pwError"></div>
+    <button class="save" id="pwBtn">Entsperren</button>
+  </div>
+</div>
+
+<div class="wrap hidden" id="app">
+  <div class="eyebrow">Schmugglerbuchten</div>
+  <h1>Illegale Angel-Spots</h1>
+
+  <div class="card">
+    <div class="card-title"><span class="plus">+</span> Neuen Spot hinzufügen</div>
+    <input id="name" placeholder="Spot-Name" />
+    <div class="row2">
+      <input id="level" placeholder="Level-Bereich (z. B. 1 - 40)" />
+      <input id="time" placeholder="Uhrzeit (z. B. 16:00 Uhr)" />
+    </div>
+    <input id="golden" placeholder="Goldene Stunde (z. B. 02 - 03 Uhr)" />
+
+    <label class="map-upload-label" id="mapUploadLabel">
+      <span id="mapUploadText">🗺️ GTA5-Karte hinzufügen (optional)</span>
+      <input type="file" id="mapInput" accept="image/*" />
+    </label>
+    <img id="mapPreview" class="map-preview hidden" />
+
+    <button class="save" id="saveBtn">+ Spot speichern</button>
+  </div>
+
+  <div id="list"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+<div id="lightbox" class="lightbox hidden"><img id="lightboxImg" /></div>
+
+<script>
+const API = '/api/spots';
+
+const nameEl = document.getElementById('name');
+const levelEl = document.getElementById('level');
+const timeEl = document.getElementById('time');
+const goldenEl = document.getElementById('golden');
+const saveBtn = document.getElementById('saveBtn');
+const listEl = document.getElementById('list');
+const toastEl = document.getElementById('toast');
+const mapInput = document.getElementById('mapInput');
+const mapPreview = document.getElementById('mapPreview');
+const mapUploadText = document.getElementById('mapUploadText');
+const lightbox = document.getElementById('lightbox');
+const lightboxImg = document.getElementById('lightboxImg');
+
+let spots = [];
+let pendingMapImage = null;
+
+function showToast(msg){
+  toastEl.textContent = msg;
+  toastEl.classList.add('show');
+  setTimeout(()=> toastEl.classList.remove('show'), 1800);
+}
+
+function escapeHtml(str){
+  const d = document.createElement('div');
+  d.textContent = str || '';
+  return d.innerHTML;
+}
+
+function readFileAsDataUrl(file){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+mapInput.addEventListener('change', async () => {
+  const file = mapInput.files[0];
+  if(!file) return;
+  try{
+    pendingMapImage = await readFileAsDataUrl(file);
+    mapPreview.src = pendingMapImage;
+    mapPreview.classList.remove('hidden');
+    mapUploadText.textContent = '🗺️ Bild ausgewählt — Klicken zum Ändern';
+  }catch(e){
+    showToast('Bild konnte nicht geladen werden');
+  }
+});
+
+function openLightbox(src){
+  lightboxImg.src = src;
+  lightbox.classList.remove('hidden');
+}
+lightbox.addEventListener('click', () => {
+  lightbox.classList.add('hidden');
+  lightboxImg.src = '';
+});
+
+// --- API-Kommunikation ---
+async function loadSpots(){
+  try{
+    const res = await fetch(API);
+    spots = await res.json();
+  }catch(e){
+    showToast('Server nicht erreichbar');
+    spots = [];
+  }
+  render();
+}
+
+async function createSpot(payload){
+  const res = await fetch(API, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  return res.json();
+}
+
+async function deleteSpot(id){
+  await fetch(`${API}/${id}`, { method: 'DELETE' });
+}
+
+async function setSpotMap(id, mapImage){
+  await fetch(`${API}/${id}/map`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ mapImage })
+  });
+}
+
+async function addFish(spotId, name, time){
+  await fetch(`${API}/${spotId}/fish`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, time })
+  });
+}
+
+async function deleteFish(spotId, fishId){
+  await fetch(`${API}/${spotId}/fish/${fishId}`, { method: 'DELETE' });
+}
+
+// --- Rendering ---
+function render(){
+  listEl.innerHTML = '';
+  if(spots.length === 0){
+    listEl.innerHTML = '<div class="empty">Noch keine Spots eingetragen.</div>';
+    return;
+  }
+
+  spots.forEach(spot => {
+    const div = document.createElement('div');
+    div.className = 'spot';
+
+    const fishItemsHtml = spot.fish.length === 0
+      ? '<div class="fish-empty">Noch keine Fische eingetragen.</div>'
+      : spot.fish.map(f => `
+          <div class="fish-item">
+            <div class="fish-item-left">
+              <span class="fname">${escapeHtml(f.name)}</span>
+              <span class="ftime">${escapeHtml(f.time)}</span>
+            </div>
+            <div class="del small" data-spot="${spot.id}" data-fish="${f.id}">🗑</div>
+          </div>
+        `).join('');
+
+    const mapHtml = spot.mapImage
+      ? `<div class="map-img-wrap" data-view-map="${spot.id}">
+           <img src="${spot.mapImage}" />
+           <div class="map-remove" data-remove-map="${spot.id}">🗑</div>
+         </div>`
+      : `<label class="map-upload-small">
+           🗺️ Karte hinzufügen
+           <input type="file" accept="image/*" data-addmap="${spot.id}" />
+         </label>`;
+
+    div.innerHTML = `
+      <div class="spot-head">
+        <div class="spot-name">🐟 ${escapeHtml(spot.name).toUpperCase()}</div>
+        <div class="del" data-id="${spot.id}">🗑</div>
+      </div>
+      <div class="stat"><span class="stat-label">Level-Bereich</span><span class="stat-value">${escapeHtml(spot.level)}</span></div>
+      <div class="stat"><span class="stat-label">Uhrzeit</span><span class="stat-value">${escapeHtml(spot.time)}</span></div>
+      <div class="stat"><span class="stat-label">Goldene Stunde</span><span class="stat-value">${escapeHtml(spot.golden)}</span></div>
+
+      <div class="map-section">
+        <div class="map-label">🗺️ GTA5-Karte</div>
+        ${mapHtml}
+      </div>
+
+      <div class="fish-section">
+        <div class="fish-label">🐠 Fische</div>
+        ${fishItemsHtml}
+        <div class="fish-add-row">
+          <input class="fname-input" placeholder="Fisch (z. B. Barsch)" data-fname="${spot.id}" />
+          <input class="ftime-input" placeholder="Zeit (z. B. 20 - 05 Uhr)" data-ftime="${spot.id}" />
+          <button class="fish-add-btn" data-addfish="${spot.id}">+</button>
+        </div>
+      </div>
+    `;
+    listEl.appendChild(div);
+  });
+
+  // Spot löschen
+  document.querySelectorAll('.del[data-id]').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      const id = e.currentTarget.getAttribute('data-id');
+      await deleteSpot(id);
+      await loadSpots();
+      showToast('Spot gelöscht');
+    });
+  });
+
+  // Fisch löschen
+  document.querySelectorAll('.del[data-fish]').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      const spotId = e.currentTarget.getAttribute('data-spot');
+      const fishId = e.currentTarget.getAttribute('data-fish');
+      await deleteFish(spotId, fishId);
+      await loadSpots();
+      showToast('Fisch gelöscht');
+    });
+  });
+
+  // Fisch hinzufügen
+  document.querySelectorAll('[data-addfish]').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      const spotId = e.currentTarget.getAttribute('data-addfish');
+      const fnameInput = document.querySelector(`[data-fname="${spotId}"]`);
+      const ftimeInput = document.querySelector(`[data-ftime="${spotId}"]`);
+      const fname = fnameInput.value.trim();
+      const ftime = ftimeInput.value.trim();
+
+      if(!fname){
+        fnameInput.focus();
+        showToast('Bitte Fisch-Namen eingeben');
+        return;
+      }
+
+      await addFish(spotId, fname, ftime);
+      await loadSpots();
+      showToast('Fisch gespeichert');
+    });
+  });
+
+  // Kartenbild bei bestehendem Spot hinzufügen
+  document.querySelectorAll('[data-addmap]').forEach(input => {
+    input.addEventListener('change', async (e) => {
+      const spotId = e.currentTarget.getAttribute('data-addmap');
+      const file = e.currentTarget.files[0];
+      if(!file) return;
+      try{
+        const dataUrl = await readFileAsDataUrl(file);
+        await setSpotMap(spotId, dataUrl);
+        await loadSpots();
+        showToast('Karte gespeichert');
+      }catch(err){
+        showToast('Bild konnte nicht geladen werden');
+      }
+    });
+  });
+
+  // Kartenbild entfernen
+  document.querySelectorAll('[data-remove-map]').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const spotId = e.currentTarget.getAttribute('data-remove-map');
+      await setSpotMap(spotId, null);
+      await loadSpots();
+      showToast('Karte entfernt');
+    });
+  });
+
+  // Kartenbild vergrößern
+  document.querySelectorAll('[data-view-map]').forEach(wrap => {
+    wrap.addEventListener('click', (e) => {
+      const img = wrap.querySelector('img');
+      if(img) openLightbox(img.src);
+    });
+  });
+}
+
+saveBtn.addEventListener('click', async () => {
+  const name = nameEl.value.trim();
+  const level = levelEl.value.trim();
+  const time = timeEl.value.trim();
+  const golden = goldenEl.value.trim();
+
+  if(!name){
+    nameEl.focus();
+    showToast('Bitte Spot-Namen eingeben');
+    return;
+  }
+
+  await createSpot({ name, level, time, golden, mapImage: pendingMapImage });
+
+  nameEl.value = '';
+  levelEl.value = '';
+  timeEl.value = '';
+  goldenEl.value = '';
+  mapInput.value = '';
+  pendingMapImage = null;
+  mapPreview.classList.add('hidden');
+  mapPreview.src = '';
+  mapUploadText.textContent = '🗺️ GTA5-Karte hinzufügen (optional)';
+
+  await loadSpots();
+  showToast('Spot gespeichert');
+});
+
+// --- Passwortsperre ---
+const APP_PASSWORD = "AngelSpotRetroRP";
+const lockScreen = document.getElementById('lockScreen');
+const appEl = document.getElementById('app');
+const pwInput = document.getElementById('pw');
+const pwBtn = document.getElementById('pwBtn');
+const pwError = document.getElementById('pwError');
+
+function unlock(){
+  lockScreen.classList.add('hidden');
+  appEl.classList.remove('hidden');
+  sessionStorage.setItem('angel-unlocked', '1');
+  loadSpots();
+}
+
+function tryUnlock(){
+  if(pwInput.value === APP_PASSWORD){
+    pwError.textContent = '';
+    unlock();
+  }else{
+    pwError.textContent = 'Falsches Passwort';
+    pwInput.value = '';
+    pwInput.focus();
+  }
+}
+
+pwBtn.addEventListener('click', tryUnlock);
+pwInput.addEventListener('keydown', (e) => {
+  if(e.key === 'Enter') tryUnlock();
+});
+
+if(sessionStorage.getItem('angel-unlocked') === '1'){
+  unlock();
+}else{
+  pwInput.focus();
+}
+</script>
+</body>
+</html>
