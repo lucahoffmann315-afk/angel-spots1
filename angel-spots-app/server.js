@@ -36,6 +36,14 @@ async function initDb() {
       time TEXT
     )
   `);
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS prices (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      price TEXT NOT NULL,
+      created_at INTEGER
+    )
+  `);
 }
 
 app.use(express.json({ limit: '15mb' })); // groß genug für Kartenbilder als Base64
@@ -137,6 +145,46 @@ app.delete('/api/spots/:spotId/fish/:fishId', async (req, res) => {
       sql: 'DELETE FROM fish WHERE id = ? AND spot_id = ?',
       args: [req.params.fishId, req.params.spotId]
     });
+    res.json({ ok: true });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: 'Datenbankfehler' });
+  }
+});
+
+// --- API: Preisliste lesen ---
+app.get('/api/prices', async (req, res) => {
+  try {
+    const result = await db.execute('SELECT * FROM prices ORDER BY created_at DESC');
+    res.json(result.rows.map(p => ({ id: p.id, name: p.name, price: p.price })));
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: 'Datenbankfehler' });
+  }
+});
+
+// --- API: Preiseintrag hinzufügen ---
+app.post('/api/prices', async (req, res) => {
+  try {
+    const { name, price } = req.body;
+    if (!name || !name.trim()) return res.status(400).json({ error: 'Name erforderlich' });
+    if (!price || !String(price).trim()) return res.status(400).json({ error: 'Preis erforderlich' });
+
+    const result = await db.execute({
+      sql: 'INSERT INTO prices (name, price, created_at) VALUES (?, ?, ?)',
+      args: [name.trim(), String(price).trim(), Date.now()]
+    });
+    res.json({ id: Number(result.lastInsertRowid) });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: 'Datenbankfehler' });
+  }
+});
+
+// --- API: Preiseintrag löschen ---
+app.delete('/api/prices/:id', async (req, res) => {
+  try {
+    await db.execute({ sql: 'DELETE FROM prices WHERE id = ?', args: [req.params.id] });
     res.json({ ok: true });
   } catch (e) {
     console.error(e);
