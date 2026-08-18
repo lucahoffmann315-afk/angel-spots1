@@ -369,6 +369,63 @@
     max-height: 100%;
     border-radius: 8px;
   }
+
+  .price-item{
+    display:flex;
+    align-items:center;
+    justify-content: space-between;
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    padding: 14px 18px;
+    margin-bottom: 10px;
+  }
+  .price-name{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    font-weight: 700;
+    font-size: 14px;
+  }
+  .price-value{
+    font-weight: 800;
+    color: var(--accent);
+    font-size: 15px;
+    margin-right: 14px;
+  }
+  .price-row-right{
+    display:flex;
+    align-items:center;
+  }
+
+  .tabs{
+    display:flex;
+    gap: 8px;
+    margin-bottom: 20px;
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    padding: 5px;
+  }
+  .tab-btn{
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: var(--text-dim);
+    font-weight: 700;
+    font-size: 14px;
+    padding: 10px 12px;
+    border-radius: 7px;
+    cursor: pointer;
+    transition: background .15s ease, color .15s ease;
+  }
+  .tab-btn:hover{ color: var(--text); }
+  .tab-btn.active{
+    background: var(--accent);
+    color: white;
+  }
+  .tab-panel{ display: none; }
+  .tab-panel.active{ display: block; }
 </style>
 </head>
 <body>
@@ -388,25 +445,45 @@
   <div class="eyebrow">Schmugglerbuchten</div>
   <h1>Illegale Angel-Spots</h1>
 
-  <div class="card">
-    <div class="card-title"><span class="plus">+</span> Neuen Spot hinzufügen</div>
-    <input id="name" placeholder="Spot-Name" />
-    <div class="row2">
-      <input id="level" placeholder="Level-Bereich (z. B. 1 - 40)" />
-      <input id="time" placeholder="Uhrzeit (z. B. 16:00 Uhr)" />
-    </div>
-    <input id="golden" placeholder="Goldene Stunde (z. B. 02 - 03 Uhr)" />
-
-    <label class="map-upload-label" id="mapUploadLabel">
-      <span id="mapUploadText">🗺️ GTA5-Karte hinzufügen (optional)</span>
-      <input type="file" id="mapInput" accept="image/*" />
-    </label>
-    <img id="mapPreview" class="map-preview hidden" />
-
-    <button class="save" id="saveBtn">+ Spot speichern</button>
+  <div class="tabs">
+    <button class="tab-btn active" id="tabBtnSpots" data-tab="spots">🐟 Spots</button>
+    <button class="tab-btn" id="tabBtnPrices" data-tab="prices">💰 Preisliste</button>
   </div>
 
-  <div id="list"></div>
+  <div class="tab-panel active" id="tabSpots">
+    <div class="card">
+      <div class="card-title"><span class="plus">+</span> Neuen Spot hinzufügen</div>
+      <input id="name" placeholder="Spot-Name" />
+      <div class="row2">
+        <input id="level" placeholder="Level-Bereich (z. B. 1 - 40)" />
+        <input id="time" placeholder="Uhrzeit (z. B. 16:00 Uhr)" />
+      </div>
+      <input id="golden" placeholder="Goldene Stunde (z. B. 02 - 03 Uhr)" />
+
+      <label class="map-upload-label" id="mapUploadLabel">
+        <span id="mapUploadText">🗺️ GTA5-Karte hinzufügen (optional)</span>
+        <input type="file" id="mapInput" accept="image/*" />
+      </label>
+      <img id="mapPreview" class="map-preview hidden" />
+
+      <button class="save" id="saveBtn">+ Spot speichern</button>
+    </div>
+
+    <div id="list"></div>
+  </div>
+
+  <div class="tab-panel" id="tabPrices">
+    <div class="card">
+      <div class="card-title"><span class="plus">+</span> Fisch zur Preisliste hinzufügen</div>
+      <div class="row2">
+        <input id="priceName" placeholder="Fisch-Name (z. B. Lachs)" />
+        <input id="priceValue" placeholder="Preis (z. B. 250$)" />
+      </div>
+      <button class="save" id="priceSaveBtn">+ Preis speichern</button>
+    </div>
+
+    <div id="priceList"></div>
+  </div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -687,6 +764,92 @@ saveBtn.addEventListener('click', async () => {
   showToast('Spot gespeichert');
 });
 
+// --- Preisliste ---
+const PRICE_API = '/api/prices';
+const priceNameEl = document.getElementById('priceName');
+const priceValueEl = document.getElementById('priceValue');
+const priceSaveBtn = document.getElementById('priceSaveBtn');
+const priceListEl = document.getElementById('priceList');
+let prices = [];
+
+async function loadPrices(){
+  try{
+    const res = await fetch(PRICE_API);
+    prices = await res.json();
+  }catch(e){
+    prices = [];
+  }
+  renderPrices();
+}
+
+function renderPrices(){
+  priceListEl.innerHTML = '';
+  if(prices.length === 0){
+    priceListEl.innerHTML = '<div class="empty">Noch keine Preise eingetragen.</div>';
+    return;
+  }
+  prices.forEach(p => {
+    const div = document.createElement('div');
+    div.className = 'price-item';
+    div.innerHTML = `
+      <div class="price-name">🐟 ${escapeHtml(p.name)}</div>
+      <div class="price-row-right">
+        <div class="price-value">${escapeHtml(p.price)}</div>
+        <div class="del small" data-priceid="${p.id}">🗑</div>
+      </div>
+    `;
+    priceListEl.appendChild(div);
+  });
+
+  document.querySelectorAll('[data-priceid]').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      const id = e.currentTarget.getAttribute('data-priceid');
+      await fetch(`${PRICE_API}/${id}`, { method: 'DELETE' });
+      await loadPrices();
+      showToast('Preis gelöscht');
+    });
+  });
+}
+
+priceSaveBtn.addEventListener('click', async () => {
+  const name = priceNameEl.value.trim();
+  const price = priceValueEl.value.trim();
+
+  if(!name){
+    priceNameEl.focus();
+    showToast('Bitte Fisch-Namen eingeben');
+    return;
+  }
+  if(!price){
+    priceValueEl.focus();
+    showToast('Bitte Preis eingeben');
+    return;
+  }
+
+  await fetch(PRICE_API, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, price })
+  });
+
+  priceNameEl.value = '';
+  priceValueEl.value = '';
+
+  await loadPrices();
+  showToast('Preis gespeichert');
+});
+
+// --- Tabs ---
+const tabBtns = document.querySelectorAll('.tab-btn');
+const tabPanels = document.querySelectorAll('.tab-panel');
+tabBtns.forEach(btn => {
+  btn.addEventListener('click', () => {
+    const target = btn.getAttribute('data-tab');
+    tabBtns.forEach(b => b.classList.toggle('active', b === btn));
+    tabPanels.forEach(p => p.classList.toggle('active', p.id === 'tab' + target.charAt(0).toUpperCase() + target.slice(1)));
+  });
+});
+
 // --- Passwortsperre ---
 const APP_PASSWORD = "AngelSpotRetroRP";
 const lockScreen = document.getElementById('lockScreen');
@@ -700,6 +863,7 @@ function unlock(){
   appEl.classList.remove('hidden');
   sessionStorage.setItem('angel-unlocked', '1');
   loadSpots();
+  loadPrices();
 }
 
 function tryUnlock(){
