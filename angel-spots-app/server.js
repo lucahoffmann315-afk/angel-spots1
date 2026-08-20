@@ -44,22 +44,40 @@ async function initDb() {
       created_at INTEGER
     )
   `);
+
+  // Migration: percent-Spalte bei fish nachträglich ergänzen, falls die
+  // Tabelle schon vorher existierte (ohne dieses Feld).
+  try {
+    await db.execute(`ALTER TABLE fish ADD COLUMN percent TEXT`);
+  } catch (e) {
+    // Spalte existiert bereits — kein Problem, einfach ignorieren.
+  }
 }
 
 app.use(express.json({ limit: '15mb' })); // groß genug für Kartenbilder als Base64
 app.use(express.static(path.join(__dirname, 'public')));
 
-// --- API: Spots lesen (inkl. Fische) ---
+// --- API: Spots lesen (inkl. Fische, pro Spot nach Prozent sortiert) ---
 app.get('/api/spots', async (req, res) => {
   try {
     const spotsResult = await db.execute('SELECT * FROM spots ORDER BY created_at DESC');
     const fishResult = await db.execute('SELECT * FROM fish');
 
+    const parsePercent = (val) => {
+      if (val === null || val === undefined || val === '') return -Infinity;
+      const num = parseFloat(String(val).replace(',', '.').replace('%', ''));
+      return isNaN(num) ? -Infinity : num;
+    };
+
     const fishBySpot = {};
     for (const f of fishResult.rows) {
       if (!fishBySpot[f.spot_id]) fishBySpot[f.spot_id] = [];
-      fishBySpot[f.spot_id].push({ id: f.id, name: f.name, time: f.time });
+      fishBySpot[f.spot_id].push({ id: f.id, name: f.name, time: f.time, percent: f.percent });
     }
+    // Fische pro Spot nach Prozent sortieren (höchste Wahrscheinlichkeit zuerst)
+    Object.keys(fishBySpot).forEach(spotId => {
+      fishBySpot[spotId].sort((a, b) => parsePercent(b.percent) - parsePercent(a.percent));
+    });
 
     const result = spotsResult.rows.map(s => ({
       id: s.id,
@@ -70,6 +88,7 @@ app.get('/api/spots', async (req, res) => {
       mapImage: s.map_image,
       fish: fishBySpot[s.id] || []
     }));
+
     res.json(result);
   } catch (e) {
     console.error(e);
@@ -124,12 +143,12 @@ app.put('/api/spots/:id/map', async (req, res) => {
 // --- API: Fisch hinzufügen ---
 app.post('/api/spots/:id/fish', async (req, res) => {
   try {
-    const { name, time } = req.body;
+    const { name, time, percent } = req.body;
     if (!name || !name.trim()) return res.status(400).json({ error: 'Name erforderlich' });
 
     const result = await db.execute({
-      sql: 'INSERT INTO fish (spot_id, name, time) VALUES (?, ?, ?)',
-      args: [req.params.id, name.trim(), time || '']
+      sql: 'INSERT INTO fish (spot_id, name, time, percent) VALUES (?, ?, ?, ?)',
+      args: [req.params.id, name.trim(), time || '', percent || '']
     });
     res.json({ id: Number(result.lastInsertRowid) });
   } catch (e) {
