@@ -176,7 +176,8 @@
     font-size: 13px;
   }
   .fish-item .fname{ font-weight: 700; }
-  .fish-item .ftime{ color: var(--text-dim); margin-left: 10px; }
+  .fish-item .fpercent{ color: var(--accent); font-weight: 800; }
+  .fish-item .ftime{ color: var(--text-dim); margin-left: 10px; font-size: 12px; }
   .fish-item-left{ display:flex; align-items:baseline; gap: 4px; flex-wrap: wrap; }
   .fish-empty{
     color: var(--text-dim);
@@ -185,6 +186,7 @@
   }
   .fish-add-row{
     display:flex;
+    flex-wrap: wrap;
     gap: 8px;
     margin-top: 8px;
   }
@@ -193,8 +195,9 @@
     font-size: 13px;
     padding: 10px 12px;
   }
-  .fish-add-row .fname-input{ flex: 1.2; }
-  .fish-add-row .ftime-input{ flex: 1; }
+  .fish-add-row .fname-input{ flex: 1 1 100%; }
+  .fish-add-row .fpercent-input{ flex: 1 1 calc(50% - 44px); min-width: 90px; }
+  .fish-add-row .ftime-input{ flex: 1 1 calc(50% - 44px); min-width: 90px; }
   .fish-add-btn{
     background: var(--accent);
     border: none;
@@ -426,6 +429,43 @@
   }
   .tab-panel{ display: none; }
   .tab-panel.active{ display: block; }
+
+  .gold-banner{
+    display:flex;
+    align-items:center;
+    gap: 12px;
+    background: linear-gradient(135deg, #b8860b, #f5c542 45%, #d4a017 55%, #f7d774);
+    background-size: 200% 200%;
+    border-radius: 12px;
+    padding: 14px 18px;
+    margin-bottom: 20px;
+    color: #241800;
+    box-shadow: 0 0 16px rgba(245,197,66,0.35);
+  }
+  .gold-banner.active{
+    animation: goldPulse 2.2s ease-in-out infinite, goldShift 6s ease infinite;
+  }
+  @keyframes goldPulse{
+    0%, 100%{ box-shadow: 0 0 14px rgba(245,197,66,0.4); }
+    50%{ box-shadow: 0 0 32px rgba(245,197,66,0.85); }
+  }
+  @keyframes goldShift{
+    0%{ background-position: 0% 50%; }
+    50%{ background-position: 100% 50%; }
+    100%{ background-position: 0% 50%; }
+  }
+  .gold-banner-icon{
+    font-size: 22px;
+    flex-shrink: 0;
+  }
+  .gold-banner-text{
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.4;
+  }
+  .gold-banner-text strong{
+    font-weight: 800;
+  }
 </style>
 </head>
 <body>
@@ -442,6 +482,11 @@
 </div>
 
 <div class="wrap hidden" id="app">
+  <div class="gold-banner hidden" id="goldBanner">
+    <div class="gold-banner-icon">⭐</div>
+    <div class="gold-banner-text" id="goldBannerText"></div>
+  </div>
+
   <div class="eyebrow">Schmugglerbuchten</div>
   <h1>Illegale Angel-Spots</h1>
 
@@ -551,6 +596,108 @@ lightbox.addEventListener('click', () => {
   lightboxImg.src = '';
 });
 
+// --- Goldene Stunde: Berechnung & Anzeige ---
+const goldBanner = document.getElementById('goldBanner');
+const goldBannerText = document.getElementById('goldBannerText');
+
+// Extrahiert Start-/Endzeit aus Texten wie "02 - 03 Uhr" oder "22:30 - 23:00"
+function parseGoldenWindow(str){
+  if(!str) return null;
+  const matches = str.match(/(\d{1,2})(?::(\d{2}))?/g);
+  if(!matches || matches.length < 2) return null;
+  const parseTok = (tok) => {
+    const parts = tok.split(':');
+    const h = parseInt(parts[0], 10) % 24;
+    const m = parts[1] ? parseInt(parts[1], 10) : 0;
+    if(isNaN(h) || isNaN(m)) return null;
+    return { h, m };
+  };
+  const start = parseTok(matches[0]);
+  const end = parseTok(matches[1]);
+  if(!start || !end) return null;
+  return { startH: start.h, startM: start.m, endH: end.h, endM: end.m };
+}
+
+function formatWindow(win){
+  const pad = n => String(n).padStart(2, '0');
+  return `${pad(win.startH)}:${pad(win.startM)} - ${pad(win.endH)}:${pad(win.endM)} Uhr`;
+}
+
+function formatMinutes(mins){
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return h > 0 ? `${h}h ${m}min` : `${m}min`;
+}
+
+function updateGoldBanner(){
+  if(!spots || spots.length === 0){
+    goldBanner.classList.add('hidden');
+    return;
+  }
+
+  const now = new Date();
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+
+  const activeSpots = [];
+  const upcoming = [];
+
+  spots.forEach(spot => {
+    const win = parseGoldenWindow(spot.golden);
+    if(!win) return;
+
+    const startMin = win.startH * 60 + win.startM;
+    const endMin = win.endH * 60 + win.endM;
+    const wrapsMidnight = endMin <= startMin;
+
+    let isActive = false;
+    let minutesUntilEnd = 0;
+    let minutesUntilStart = 0;
+
+    if(wrapsMidnight){
+      isActive = nowMin >= startMin || nowMin < endMin;
+      if(isActive){
+        minutesUntilEnd = nowMin >= startMin ? (endMin + 1440 - nowMin) : (endMin - nowMin);
+      }else{
+        minutesUntilStart = startMin - nowMin;
+        if(minutesUntilStart < 0) minutesUntilStart += 1440;
+      }
+    }else{
+      isActive = nowMin >= startMin && nowMin < endMin;
+      if(isActive){
+        minutesUntilEnd = endMin - nowMin;
+      }else{
+        minutesUntilStart = startMin - nowMin;
+        if(minutesUntilStart < 0) minutesUntilStart += 1440;
+      }
+    }
+
+    if(isActive){
+      activeSpots.push({ spot, minutesUntilEnd });
+    }else{
+      upcoming.push({ spot, minutesUntilStart, win });
+    }
+  });
+
+  if(activeSpots.length > 0){
+    goldBanner.classList.remove('hidden');
+    goldBanner.classList.add('active');
+    const names = activeSpots.map(a => escapeHtml(a.spot.name)).join(', ');
+    const soonestEnd = Math.min(...activeSpots.map(a => a.minutesUntilEnd));
+    goldBannerText.innerHTML = `<strong>🌟 GOLDENE STUNDE AKTIV:</strong> ${names} — noch ${formatMinutes(soonestEnd)}`;
+  }else if(upcoming.length > 0){
+    goldBanner.classList.remove('hidden');
+    goldBanner.classList.remove('active');
+    upcoming.sort((a, b) => a.minutesUntilStart - b.minutesUntilStart);
+    const next = upcoming[0];
+    goldBannerText.innerHTML = `<strong>⏳ Nächste Goldene Stunde:</strong> ${escapeHtml(next.spot.name)} in ${formatMinutes(next.minutesUntilStart)} (${formatWindow(next.win)})`;
+  }else{
+    goldBanner.classList.add('hidden');
+  }
+}
+
+// Timer alle 30 Sekunden aktualisieren (ohne neu vom Server zu laden)
+setInterval(updateGoldBanner, 30000);
+
 // --- API-Kommunikation ---
 async function loadSpots(){
   try{
@@ -561,6 +708,7 @@ async function loadSpots(){
     spots = [];
   }
   render();
+  updateGoldBanner();
 }
 
 async function createSpot(payload){
@@ -584,11 +732,11 @@ async function setSpotMap(id, mapImage){
   });
 }
 
-async function addFish(spotId, name, time){
+async function addFish(spotId, name, time, percent){
   await fetch(`${API}/${spotId}/fish`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, time })
+    body: JSON.stringify({ name, time, percent })
   });
 }
 
@@ -608,13 +756,21 @@ function render(){
     const div = document.createElement('div');
     div.className = 'spot';
 
+    const formatPercent = (val) => {
+      if(!val) return '';
+      const num = parseFloat(String(val).replace(',', '.').replace('%', ''));
+      if(isNaN(num)) return escapeHtml(val);
+      return num.toFixed(2).replace('.', ',') + ' %';
+    };
+
     const fishItemsHtml = spot.fish.length === 0
       ? '<div class="fish-empty">Noch keine Fische eingetragen.</div>'
       : spot.fish.map(f => `
           <div class="fish-item">
             <div class="fish-item-left">
               <span class="fname">${escapeHtml(f.name)}</span>
-              <span class="ftime">${escapeHtml(f.time)}</span>
+              ${f.percent ? `<span class="fpercent"> - ${formatPercent(f.percent)}</span>` : ''}
+              ${f.time ? `<span class="ftime">${escapeHtml(f.time)}</span>` : ''}
             </div>
             <div class="del small" data-spot="${spot.id}" data-fish="${f.id}">🗑</div>
           </div>
@@ -649,7 +805,8 @@ function render(){
         ${fishItemsHtml}
         <div class="fish-add-row">
           <input class="fname-input" placeholder="Fisch (z. B. Barsch)" data-fname="${spot.id}" />
-          <input class="ftime-input" placeholder="Zeit (z. B. 20 - 05 Uhr)" data-ftime="${spot.id}" />
+          <input class="fpercent-input" placeholder="Prozent (z. B. 16,13%)" data-fpercent="${spot.id}" />
+          <input class="ftime-input" placeholder="Zeit (optional)" data-ftime="${spot.id}" />
           <button class="fish-add-btn" data-addfish="${spot.id}">+</button>
         </div>
       </div>
@@ -683,8 +840,10 @@ function render(){
     btn.addEventListener('click', async (e) => {
       const spotId = e.currentTarget.getAttribute('data-addfish');
       const fnameInput = document.querySelector(`[data-fname="${spotId}"]`);
+      const fpercentInput = document.querySelector(`[data-fpercent="${spotId}"]`);
       const ftimeInput = document.querySelector(`[data-ftime="${spotId}"]`);
       const fname = fnameInput.value.trim();
+      const fpercent = fpercentInput.value.trim();
       const ftime = ftimeInput.value.trim();
 
       if(!fname){
@@ -693,7 +852,7 @@ function render(){
         return;
       }
 
-      await addFish(spotId, fname, ftime);
+      await addFish(spotId, fname, ftime, fpercent);
       await loadSpots();
       showToast('Fisch gespeichert');
     });
