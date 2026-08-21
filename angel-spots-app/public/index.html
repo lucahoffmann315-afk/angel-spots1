@@ -379,10 +379,35 @@
     justify-content: space-between;
     background: var(--panel);
     border: 1px solid var(--panel-border);
+    border-left: 4px solid var(--panel-border);
     border-radius: 10px;
     padding: 14px 18px;
     margin-bottom: 10px;
+    transition: border-left-color .2s ease;
   }
+  .price-item.fresh{ border-left-color: #3fb950; }
+  .price-item.aging{ border-left-color: #d4a017; }
+  .price-item.stale{ border-left-color: var(--accent); }
+
+  .price-drag-handle{
+    color: var(--text-dim);
+    font-size: 18px;
+    line-height: 1;
+    padding: 4px 8px 4px 0;
+    cursor: grab;
+    flex-shrink: 0;
+    touch-action: none;
+    user-select: none;
+  }
+  .price-drag-handle:active{ cursor: grabbing; }
+  .price-item-ghost{
+    opacity: 0.4;
+  }
+  .price-item-dragging{
+    box-shadow: 0 0 16px rgba(229,72,77,0.35);
+  }
+
+  .price-info{ display:flex; flex-direction:column; gap: 4px; }
   .price-name{
     display:flex;
     align-items:center;
@@ -390,16 +415,66 @@
     font-weight: 700;
     font-size: 14px;
   }
+  .price-meta{
+    font-size: 11px;
+    color: var(--text-dim);
+    display:flex;
+    align-items:center;
+    gap: 6px;
+  }
+  .price-dot{
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    display:inline-block;
+    flex-shrink: 0;
+  }
+  .price-dot.fresh{ background: #3fb950; }
+  .price-dot.aging{ background: #d4a017; }
+  .price-dot.stale{ background: var(--accent); }
+
+  .price-value-wrap{
+    display:flex;
+    align-items:baseline;
+    gap: 6px;
+  }
   .price-value{
     font-weight: 800;
     color: var(--accent);
     font-size: 15px;
-    margin-right: 14px;
+  }
+  .price-trend{
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .price-trend.up{ color: #f0616a; }
+  .price-trend.down{ color: #3fb950; }
+  .price-prev{
+    font-size: 11px;
+    color: var(--text-dim);
+    text-decoration: line-through;
   }
   .price-row-right{
     display:flex;
     align-items:center;
+    gap: 8px;
   }
+  .price-action-btn{
+    background: var(--input-bg);
+    border: 1px solid var(--input-border);
+    border-radius: 8px;
+    width: 30px;
+    height: 30px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    cursor: pointer;
+    font-size: 13px;
+    flex-shrink: 0;
+    transition: border-color .15s ease;
+  }
+  .price-action-btn:hover{ border-color: var(--accent); }
+  .price-action-btn.confirm:hover{ border-color: #3fb950; }
 
   .tabs{
     display:flex;
@@ -466,7 +541,77 @@
   .gold-banner-text strong{
     font-weight: 800;
   }
+
+  .ocr-upload-label{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap: 8px;
+    width: 100%;
+    background: var(--input-bg);
+    border: 1px dashed var(--input-border);
+    border-radius: 8px;
+    color: var(--text-dim);
+    padding: 14px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: border-color .15s ease, color .15s ease;
+  }
+  .ocr-upload-label:hover{ border-color: var(--accent); color: var(--text); }
+  .ocr-upload-label input[type="file"]{ display:none; }
+
+  .ocr-status{
+    text-align:center;
+    font-size: 13px;
+    color: var(--text-dim);
+    padding: 10px 0;
+    font-weight: 600;
+  }
+
+  .ocr-review-list{ margin-top: 14px; }
+  .ocr-review-item{
+    display:flex;
+    align-items:center;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .ocr-review-item input{
+    margin-bottom: 0;
+    font-size: 13px;
+    padding: 10px 12px;
+  }
+  .ocr-name-input{ flex: 1.6; }
+  .ocr-price-input{ flex: 1; }
+
+  .ocr-review-actions{
+    display:flex;
+    gap: 10px;
+    margin-top: 14px;
+  }
+  .ocr-review-actions button{
+    flex: 1;
+    border: none;
+    border-radius: 8px;
+    padding: 12px 14px;
+    font-weight: 700;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .ocr-apply-btn{ background: var(--accent); color: white; }
+  .ocr-apply-btn:hover{ background: var(--accent-hover); }
+  .ocr-cancel-btn{ background: var(--input-bg); color: var(--text-dim); border: 1px solid var(--input-border) !important; }
+  .ocr-cancel-btn:hover{ color: var(--text); }
+
+  .ocr-review-count{
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-top: 10px;
+    margin-bottom: 4px;
+  }
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.0.4/tesseract.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
 </head>
 <body>
 
@@ -525,6 +670,24 @@
         <input id="priceValue" placeholder="Preis (z. B. 250$)" />
       </div>
       <button class="save" id="priceSaveBtn">+ Preis speichern</button>
+    </div>
+
+    <div class="card">
+      <div class="card-title">📷 Preise aus Bild einlesen</div>
+      <label class="ocr-upload-label" id="ocrUploadLabel">
+        <span id="ocrUploadText">📷 Screenshot der Marktpreise hochladen</span>
+        <input type="file" id="ocrUploadInput" accept="image/*" />
+      </label>
+      <div class="ocr-status hidden" id="ocrStatus"></div>
+
+      <div class="hidden" id="ocrReviewSection">
+        <div class="ocr-review-count" id="ocrReviewCount"></div>
+        <div class="ocr-review-list" id="ocrReviewList"></div>
+        <div class="ocr-review-actions">
+          <button class="ocr-cancel-btn" id="ocrCancelBtn">Verwerfen</button>
+          <button class="ocr-apply-btn" id="ocrApplyBtn">Übernehmen</button>
+        </div>
+      </div>
     </div>
 
     <div id="priceList"></div>
@@ -941,6 +1104,51 @@ async function loadPrices(){
   renderPrices();
 }
 
+async function createPriceEntry(name, price){
+  await fetch(PRICE_API, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, price })
+  });
+}
+
+async function updatePriceValue(id, price){
+  await fetch(`${PRICE_API}/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ price })
+  });
+}
+
+// Formatiert einen Zeitpunkt relativ zu jetzt (z. B. "vor 5 Min.")
+function formatRelativeTime(ts){
+  if(!ts) return 'unbekannt';
+  const diffMs = Date.now() - ts;
+  const diffMin = Math.floor(diffMs / 60000);
+  if(diffMin < 1) return 'gerade eben';
+  if(diffMin < 60) return `vor ${diffMin} Min.`;
+  const diffH = Math.floor(diffMin / 60);
+  if(diffH < 24) return `vor ${diffH} Std.`;
+  const diffD = Math.floor(diffH / 24);
+  return `vor ${diffD} Tag${diffD === 1 ? '' : 'en'}`;
+}
+
+// Bestimmt Alterskategorie für Farbcodierung
+function priceAgeClass(ts){
+  if(!ts) return 'stale';
+  const diffMs = Date.now() - ts;
+  const oneHour = 60 * 60 * 1000;
+  const oneDay = 24 * oneHour;
+  if(diffMs < oneHour) return 'fresh';
+  if(diffMs < oneDay) return 'aging';
+  return 'stale';
+}
+
+function parsePriceNumber(val){
+  if(val === null || val === undefined) return NaN;
+  return parseFloat(String(val).replace(',', '.').replace(/[^0-9.\-]/g, ''));
+}
+
 function renderPrices(){
   priceListEl.innerHTML = '';
   if(prices.length === 0){
@@ -949,17 +1157,48 @@ function renderPrices(){
   }
   prices.forEach(p => {
     const div = document.createElement('div');
-    div.className = 'price-item';
+    const ageClass = priceAgeClass(p.updatedAt);
+    div.className = `price-item ${ageClass}`;
+    div.setAttribute('data-id', p.id);
+
+    let trendHtml = '';
+    if(p.previousPrice){
+      const oldNum = parsePriceNumber(p.previousPrice);
+      const newNum = parsePriceNumber(p.price);
+      if(!isNaN(oldNum) && !isNaN(newNum) && oldNum !== newNum){
+        const isUp = newNum > oldNum;
+        trendHtml = `
+          <span class="price-trend ${isUp ? 'up' : 'down'}">${isUp ? '↑' : '↓'}</span>
+          <span class="price-prev">${escapeHtml(p.previousPrice)}</span>
+        `;
+      }
+    }
+
     div.innerHTML = `
-      <div class="price-name">🐟 ${escapeHtml(p.name)}</div>
+      <div class="price-drag-handle" title="Ziehen zum Umsortieren">⠿</div>
+      <div class="price-info">
+        <div class="price-name">🐟 ${escapeHtml(p.name)}</div>
+        <div class="price-meta">
+          <span class="price-dot ${ageClass}"></span>
+          ${formatRelativeTime(p.updatedAt)}
+        </div>
+      </div>
       <div class="price-row-right">
-        <div class="price-value">${escapeHtml(p.price)}</div>
-        <div class="del small" data-priceid="${p.id}">🗑</div>
+        <div class="price-value-wrap">
+          <div class="price-value">${escapeHtml(p.price)}</div>
+          ${trendHtml}
+        </div>
+        <div class="price-action-btn confirm" data-confirm-id="${p.id}" title="Preis bestätigen">✓</div>
+        <div class="price-action-btn" data-edit-id="${p.id}" title="Preis bearbeiten">✏️</div>
+        <div class="price-action-btn" data-priceid="${p.id}" title="Löschen">🗑</div>
       </div>
     `;
     priceListEl.appendChild(div);
   });
 
+  initPriceSorting();
+
+  // Löschen
   document.querySelectorAll('[data-priceid]').forEach(btn => {
     btn.addEventListener('click', async (e) => {
       const id = e.currentTarget.getAttribute('data-priceid');
@@ -967,6 +1206,71 @@ function renderPrices(){
       await loadPrices();
       showToast('Preis gelöscht');
     });
+  });
+
+  // Bestätigen (nur Zeitstempel auffrischen)
+  document.querySelectorAll('[data-confirm-id]').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      const id = e.currentTarget.getAttribute('data-confirm-id');
+      await fetch(`${PRICE_API}/${id}/confirm`, { method: 'PUT' });
+      await loadPrices();
+      showToast('Preis bestätigt');
+    });
+  });
+
+  // Bearbeiten
+  document.querySelectorAll('[data-edit-id]').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      const id = e.currentTarget.getAttribute('data-edit-id');
+      const current = prices.find(p => String(p.id) === String(id));
+      const input = prompt('Neuer Preis:', current ? current.price : '');
+      if(input === null) return; // abgebrochen
+      const trimmed = input.trim();
+      if(!trimmed){
+        showToast('Preis darf nicht leer sein');
+        return;
+      }
+      await updatePriceValue(id, trimmed);
+      await loadPrices();
+      showToast('Preis aktualisiert');
+    });
+  });
+}
+
+// Zeitstempel-Anzeigen automatisch alle 60 Sekunden auffrischen
+setInterval(() => { if(prices.length > 0) renderPrices(); }, 60000);
+
+// --- Drag & Drop zum manuellen Umsortieren der Preisliste ---
+let priceSortableInstance = null;
+
+function initPriceSorting(){
+  if(priceSortableInstance){
+    priceSortableInstance.destroy();
+    priceSortableInstance = null;
+  }
+  if(typeof Sortable === 'undefined' || prices.length === 0) return;
+
+  priceSortableInstance = Sortable.create(priceListEl, {
+    handle: '.price-drag-handle',
+    animation: 150,
+    ghostClass: 'price-item-ghost',
+    dragClass: 'price-item-dragging',
+    onEnd: async () => {
+      const newOrder = Array.from(priceListEl.querySelectorAll('.price-item'))
+        .map(el => el.getAttribute('data-id'));
+      try{
+        await fetch(`${PRICE_API}/reorder`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ order: newOrder })
+        });
+        // Lokale Reihenfolge synchron halten, ohne neu vom Server zu laden
+        const byId = Object.fromEntries(prices.map(p => [String(p.id), p]));
+        prices = newOrder.map(id => byId[id]).filter(Boolean);
+      }catch(e){
+        showToast('Reihenfolge konnte nicht gespeichert werden');
+      }
+    }
   });
 }
 
@@ -985,11 +1289,7 @@ priceSaveBtn.addEventListener('click', async () => {
     return;
   }
 
-  await fetch(PRICE_API, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, price })
-  });
+  await createPriceEntry(name, price);
 
   priceNameEl.value = '';
   priceValueEl.value = '';
@@ -1007,6 +1307,201 @@ tabBtns.forEach(btn => {
     tabBtns.forEach(b => b.classList.toggle('active', b === btn));
     tabPanels.forEach(p => p.classList.toggle('active', p.id === 'tab' + target.charAt(0).toUpperCase() + target.slice(1)));
   });
+});
+
+// --- Preise aus Bild einlesen (Tesseract.js OCR) ---
+const ocrUploadInput = document.getElementById('ocrUploadInput');
+const ocrStatus = document.getElementById('ocrStatus');
+const ocrReviewSection = document.getElementById('ocrReviewSection');
+const ocrReviewList = document.getElementById('ocrReviewList');
+const ocrReviewCount = document.getElementById('ocrReviewCount');
+const ocrCancelBtn = document.getElementById('ocrCancelBtn');
+const ocrApplyBtn = document.getElementById('ocrApplyBtn');
+let ocrCandidates = [];
+
+const OCR_IGNORE_WORDS = new Set([
+  'fischmarkt','legal','illegal','fundgegenstände','fundgegenstande',
+  'alle','marktpreise','items','suchen','item'
+]);
+
+ocrUploadInput.addEventListener('change', async () => {
+  const file = ocrUploadInput.files[0];
+  if(!file) return;
+
+  ocrCandidates = [];
+  ocrReviewSection.classList.add('hidden');
+  ocrStatus.classList.remove('hidden');
+  ocrStatus.textContent = '⏳ Bild wird analysiert...';
+
+  try{
+    const { data } = await Tesseract.recognize(file, 'deu', {
+      logger: m => {
+        if(m.status === 'recognizing text'){
+          const pct = Math.round((m.progress || 0) * 100);
+          ocrStatus.textContent = `⏳ Bild wird analysiert... ${pct}%`;
+        }
+      }
+    });
+
+    ocrCandidates = extractPriceCandidates(data.words || []);
+    ocrStatus.classList.add('hidden');
+
+    if(ocrCandidates.length === 0){
+      showToast('Keine Preise im Bild erkannt — bitte anderes/schärferes Bild versuchen');
+    }else{
+      renderOcrReview();
+    }
+  }catch(e){
+    console.error(e);
+    ocrStatus.textContent = '❌ Fehler beim Analysieren des Bildes';
+  }
+
+  ocrUploadInput.value = '';
+});
+
+// Findet Preis-Muster ("4.358$" etc.) in den erkannten Wörtern und ordnet
+// anhand der Position im Bild den davor stehenden Text als Fisch-Namen zu.
+function extractPriceCandidates(words){
+  const priceWords = [];
+
+  for(let i = 0; i < words.length; i++){
+    const w = words[i];
+    const text = (w.text || '').trim();
+
+    // Zahl + $-Zeichen in einem Wort, z. B. "4.358$"
+    let m = text.match(/^(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{1,2})?)\$$/);
+    if(m){
+      priceWords.push({ value: m[1] + '$', bbox: w.bbox });
+      continue;
+    }
+
+    // Zahl und "$" als getrennte Wörter erkannt
+    if(/^\d{1,3}(?:[.,]\d{3})*$/.test(text) && words[i+1] && (words[i+1].text || '').trim() === '$'){
+      priceWords.push({ value: text + '$', bbox: w.bbox });
+    }
+  }
+
+  const candidates = priceWords.map(pw => {
+    const priceCenterY = (pw.bbox.y0 + pw.bbox.y1) / 2;
+    const rowHeight = Math.max(pw.bbox.y1 - pw.bbox.y0, 12);
+
+    const nameWords = words.filter(w => {
+      if(!w.bbox) return false;
+      const wCenterY = (w.bbox.y0 + w.bbox.y1) / 2;
+      const sameRow = Math.abs(wCenterY - priceCenterY) < rowHeight * 0.9;
+      const toLeft = w.bbox.x1 <= pw.bbox.x0 + 5;
+      const notTooFar = (pw.bbox.x0 - w.bbox.x1) < 260;
+      const cleanWord = (w.text || '').trim().toLowerCase().replace(/[^a-zäöüß]/g, '');
+      const isIgnored = OCR_IGNORE_WORDS.has(cleanWord) || cleanWord.length === 0;
+      return sameRow && toLeft && notTooFar && !isIgnored;
+    });
+
+    nameWords.sort((a, b) => a.bbox.x0 - b.bbox.x0);
+
+    // Nur eine zusammenhängende Wortgruppe direkt vor dem Preis übernehmen
+    // (verhindert, dass bei mehrspaltigem Grid der Name der Nachbarkarte
+    // in derselben Zeile mit reingezogen wird).
+    const selected = [];
+    for(let i = nameWords.length - 1; i >= 0; i--){
+      const w = nameWords[i];
+      if(selected.length === 0){
+        selected.unshift(w);
+      }else{
+        const gap = selected[0].bbox.x0 - w.bbox.x1;
+        if(gap < 60){
+          selected.unshift(w);
+        }else{
+          break;
+        }
+      }
+    }
+
+    const name = selected.map(w => (w.text || '').trim()).join(' ').trim();
+
+    return {
+      name,
+      price: pw.value,
+      sortKey: pw.bbox.y0 * 10000 + pw.bbox.x0
+    };
+  }).filter(c => c.name.length > 1);
+
+  candidates.sort((a, b) => a.sortKey - b.sortKey);
+
+  // Duplikate (gleicher Name + Preis, z. B. doppelt erkannt) entfernen
+  const seen = new Set();
+  return candidates.filter(c => {
+    const key = c.name.toLowerCase() + '|' + c.price;
+    if(seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function renderOcrReview(){
+  if(ocrCandidates.length === 0){
+    ocrReviewSection.classList.add('hidden');
+    return;
+  }
+  ocrReviewSection.classList.remove('hidden');
+  ocrReviewCount.textContent = `${ocrCandidates.length} Einträge erkannt — bitte kurz prüfen und korrigieren:`;
+
+  ocrReviewList.innerHTML = ocrCandidates.map((c, idx) => `
+    <div class="ocr-review-item">
+      <input class="ocr-name-input" data-ocr-name="${idx}" value="${escapeHtml(c.name)}" placeholder="Fisch-Name" />
+      <input class="ocr-price-input" data-ocr-price="${idx}" value="${escapeHtml(c.price)}" placeholder="Preis" />
+      <div class="price-action-btn" data-ocr-remove="${idx}" title="Entfernen">🗑</div>
+    </div>
+  `).join('');
+
+  document.querySelectorAll('[data-ocr-remove]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const idx = parseInt(e.currentTarget.getAttribute('data-ocr-remove'), 10);
+      ocrCandidates.splice(idx, 1);
+      renderOcrReview();
+    });
+  });
+  document.querySelectorAll('[data-ocr-name]').forEach(input => {
+    input.addEventListener('input', (e) => {
+      const idx = parseInt(e.currentTarget.getAttribute('data-ocr-name'), 10);
+      ocrCandidates[idx].name = e.currentTarget.value;
+    });
+  });
+  document.querySelectorAll('[data-ocr-price]').forEach(input => {
+    input.addEventListener('input', (e) => {
+      const idx = parseInt(e.currentTarget.getAttribute('data-ocr-price'), 10);
+      ocrCandidates[idx].price = e.currentTarget.value;
+    });
+  });
+}
+
+ocrCancelBtn.addEventListener('click', () => {
+  ocrCandidates = [];
+  ocrReviewSection.classList.add('hidden');
+});
+
+ocrApplyBtn.addEventListener('click', async () => {
+  let created = 0;
+  let updated = 0;
+
+  for(const c of ocrCandidates){
+    const name = (c.name || '').trim();
+    const price = (c.price || '').trim();
+    if(!name || !price) continue;
+
+    const existing = prices.find(p => p.name.trim().toLowerCase() === name.toLowerCase());
+    if(existing){
+      await updatePriceValue(existing.id, price);
+      updated++;
+    }else{
+      await createPriceEntry(name, price);
+      created++;
+    }
+  }
+
+  ocrCandidates = [];
+  ocrReviewSection.classList.add('hidden');
+  await loadPrices();
+  showToast(`✅ ${created} neu, ${updated} aktualisiert`);
 });
 
 // --- Passwortsperre ---
