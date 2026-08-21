@@ -52,6 +52,36 @@ async function initDb() {
   } catch (e) {
     // Spalte existiert bereits — kein Problem, einfach ignorieren.
   }
+
+  // Migration: updated_at & previous_price bei prices nachträglich ergänzen.
+  try {
+    await db.execute(`ALTER TABLE prices ADD COLUMN updated_at INTEGER`);
+  } catch (e) { /* existiert bereits */ }
+  try {
+    await db.execute(`ALTER TABLE prices ADD COLUMN previous_price TEXT`);
+  } catch (e) { /* existiert bereits */ }
+
+  // Migration: sort_order für manuelle Sortierung (Drag & Drop) ergänzen.
+  try {
+    await db.execute(`ALTER TABLE prices ADD COLUMN sort_order INTEGER`);
+  } catch (e) { /* existiert bereits */ }
+
+  // Bestehende Einträge ohne sort_order einmalig auffüllen (nach bisheriger
+  // Reihenfolge: neueste Aktualisierung zuerst), damit die Liste beim ersten
+  // Laden nach dem Update nicht durcheinandergerät.
+  try {
+    const unsorted = await db.execute(
+      'SELECT id FROM prices WHERE sort_order IS NULL ORDER BY updated_at DESC'
+    );
+    for (let i = 0; i < unsorted.rows.length; i++) {
+      await db.execute({
+        sql: 'UPDATE prices SET sort_order = ? WHERE id = ?',
+        args: [i, unsorted.rows[i].id]
+      });
+    }
+  } catch (e) {
+    console.error('Konnte sort_order nicht initial befüllen:', e);
+  }
 }
 
 app.use(express.json({ limit: '15mb' })); // groß genug für Kartenbilder als Base64
@@ -171,29 +201,96 @@ app.delete('/api/spots/:spotId/fish/:fishId', async (req, res) => {
   }
 });
 
-// --- API: Preisliste lesen ---
+// --- API: Preisliste lesen (nach manueller Reihenfolge sortiert) ---
 app.get('/api/prices', async (req, res) => {
   try {
-    const result = await db.execute('SELECT * FROM prices ORDER BY created_at DESC');
-    res.json(result.rows.map(p => ({ id: p.id, name: p.name, price: p.price })));
+    const result = await db.execute(
+      'SELECT * FROM prices ORDER BY (sort_order IS NULL), sort_order ASC, updated_at DESC'
+    );
+    res.json(result.rows.map(p => ({
+      id: p.id,
+      name: p.name,
+      price: p.price,
+      previousPrice: p.previous_price,
+      updatedAt: p.updated_at || p.created_at,
+      sortOrder: p.sort_order
+    })));
   } catch (e) {
     console.error(e);
     res.status(500).json({ error: 'Datenbankfehler' });
   }
 });
 
-// --- API: Preiseintrag hinzufügen ---
+// --- API: Preiseintrag hinzufügen (wird ans Ende der Liste einsortiert) ---
 app.post('/api/prices', async (req, res) => {
   try {
     const { name, price } = req.body;
     if (!name || !name.trim()) return res.status(400).json({ error: 'Name erforderlich' });
     if (!price || !String(price).trim()) return res.status(400).json({ error: 'Preis erforderlich' });
 
+    const now = Date.now();
+    const maxResult = await db.execute('SELECT MAX(sort_order) as maxOrder FROM prices');
+    const nextOrder = (maxResult.rows[0].maxOrder === null ? -1 : maxResult.rows[0].maxOrder) + 1;
+
     const result = await db.execute({
-      sql: 'INSERT INTO prices (name, price, created_at) VALUES (?, ?, ?)',
-      args: [name.trim(), String(price).trim(), Date.now()]
+      sql: 'INSERT INTO prices (name, price, created_at, updated_at, previous_price, sort_order) VALUES (?, ?, ?, ?, ?, ?)',
+      args: [name.trim(), String(price).trim(), now, now, null, nextOrder]
     });
     res.json({ id: Number(result.lastInsertRowid) });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: 'Datenbankfehler' });
+  }
+});
+
+// --- API: Reihenfolge der Preisliste speichern (Drag & Drop) ---
+app.put('/api/prices/reorder', async (req, res) => {
+  try {
+    const { order } = req.body; // Array von IDs in der gewünschten Reihenfolge
+    if (!Array.isArray(order)) return res.status(400).json({ error: '"order" muss ein Array sein' });
+
+    for (let i = 0; i < order.length; i++) {
+      await db.execute({
+        sql: 'UPDATE prices SET sort_order = ? WHERE id = ?',
+        args: [i, order[i]]
+      });
+    }
+    res.json({ ok: true });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: 'Datenbankfehler' });
+  }
+});
+
+// --- API: Preiseintrag bearbeiten (neuer Wert, alter Wert wird als previous_price gespeichert) ---
+app.put('/api/prices/:id', async (req, res) => {
+  try {
+    const { price } = req.body;
+    if (!price || !String(price).trim()) return res.status(400).json({ error: 'Preis erforderlich' });
+
+    const existing = await db.execute({ sql: 'SELECT price FROM prices WHERE id = ?', args: [req.params.id] });
+    if (existing.rows.length === 0) return res.status(404).json({ error: 'Nicht gefunden' });
+    const oldPrice = existing.rows[0].price;
+
+    await db.execute({
+      sql: 'UPDATE prices SET price = ?, previous_price = ?, updated_at = ? WHERE id = ?',
+      args: [String(price).trim(), oldPrice, Date.now(), req.params.id]
+    });
+    res.json({ ok: true });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: 'Datenbankfehler' });
+  }
+});
+
+// --- API: Preis bestätigen (nur Zeitstempel auffrischen, Wert bleibt) ---
+app.put('/api/prices/:id/confirm', async (req, res) => {
+  try {
+    await db.execute({
+      sql: 'UPDATE prices SET updated_at = ? WHERE id = ?',
+      args: [Date.now(), req.params.id]
+    });
+    res.json({ ok: true });
   } catch (e) {
     console.error(e);
     res.status(500).json({ error: 'Datenbankfehler' });
